@@ -3,15 +3,17 @@ const octokit = require('@octokit/rest')();
 
 async function updateBranch(branch, sha) {
     try {
-        console.log(`Updating ${branch} (${sha})`);
-        await octokit.gitdata.updateReference({
+        const old_sha = (await octokit.gitdata.getReference({
             owner: 'web-platform-tests',
             repo: 'wpt',
             ref: `heads/${branch}`, // no leading 'refs/'
-            sha: sha,
-            force: true,
-        });
-    } catch (e) {
+        })).data.object.sha;
+        if (old_sha === sha) {
+            console.log(`Branch ${branch} is already up to date (${sha})`);
+            return;
+        }
+    } catch(e) {
+        // getReference might have failed because the branch doesn't exist.
         console.log(`Creating ${branch} (${sha}) instead`);
         await octokit.gitdata.createReference({
             owner: 'web-platform-tests',
@@ -20,6 +22,14 @@ async function updateBranch(branch, sha) {
             sha: sha,
         });
     }
+    console.log(`Updating ${branch} (${sha})`);
+    await octokit.gitdata.updateReference({
+        owner: 'web-platform-tests',
+        repo: 'wpt',
+        ref: `heads/${branch}`, // no leading 'refs/'
+        sha: sha,
+        force: true,
+    });
 }
 
 async function main() {
